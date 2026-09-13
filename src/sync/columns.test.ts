@@ -482,3 +482,110 @@ test('the required-column reader tells a real rule from a default and from prose
     ['origin'],
   );
 });
+
+
+/**
+ * **A QUARTA direção: coluna que o aparelho exige e a DESCIDA não traz.**
+ *
+ * As três guardas acima olham a subida e o servidor. Nenhuma olhava o que a descida GRAVA, e o
+ * defeito dessa direção foi medido em 13 de setembro:
+ *
+ * 1. **`purchase_lines.created_at` é `NOT NULL` sem padrão e é coluna só do aparelho.** A descida
+ *    nomeia as colunas que grava, então a linha entrava sem ela e o SQLite respondia `NOT NULL
+ *    constraint failed`. Página fora, cursor parado, réplica de compras morta para sempre.
+ * 2. **Dez colunas convertidas na ida nunca eram PEDIDAS na volta** — `items.packaging`,
+ *    `products.packaging_items`, `profiles.capabilities`, `locations.sensor_ranges` e o `active` de
+ *    oito tabelas —, porque `pedido()` derivava as colunas do `take` e elas moram em `build`.
+ *
+ * Nenhum dos dois aparecia porque o único `gravarPagina` exercitado em teste era o de
+ * `movements`. É a metade do P1 que este projeto já nomeou: *"quem EXERCITA isto?"*.
+ *
+ * A régua: para toda tabela de `DESCEM`, toda coluna do aparelho tem de estar nas colunas que a
+ * descida pede, ou ser preenchida na escrita (`DO_APARELHO`), ou estar em `SO_DO_APARELHO` com o
+ * motivo escrito. E as OBRIGATÓRIAS sem padrão são cobradas mais forte: para elas não existe
+ * exceção silenciosa — sem valor a página não entra.
+ */
+const PREENCHIDAS_NA_DESCIDA: Record<string, readonly string[]> = {
+  // Ver `DO_APARELHO` em `src/data/descida.ts`: `created_at` de uma linha que desceu é a hora em
+  // que ESTE aparelho soube dela, que é o `received_at` do servidor.
+  purchase_lines: ['created_at'],
+};
+
+test('every column the device requires arrives when the row descends', async () => {
+  const { colunasQueDescem } = await import('./serialize');
+  const faltando: string[] = [];
+  const perdidas: string[] = [];
+
+  for (const tabela of DESCEM) {
+    const colunas = await conn.getAllAsync<{ name: string; notnull: number; dflt_value: unknown }>(
+      `PRAGMA table_info(${tabela})`,
+    );
+    assert.ok(colunas.length > 0, `${tabela} desce e o aparelho não tem a tabela`);
+
+    const chegam = new Set<string>([
+      ...colunasQueDescem(tabela),
+      ...(PREENCHIDAS_NA_DESCIDA[String(tabela)] ?? []),
+    ]);
+    const dispensadas = SO_DO_APARELHO[String(tabela)] ?? {};
+
+    for (const coluna of colunas) {
+      if (chegam.has(coluna.name) || coluna.name === 'received_at') continue;
+      const obrigatoria = coluna.notnull === 1 && coluna.dflt_value === null;
+      // Obrigatória sem padrão: não há exceção possível. Sem valor o `INSERT` é recusado e a
+      // página inteira cai — a descida para de andar, não perde um campo.
+      if (obrigatoria) faltando.push(`${String(tabela)}.${coluna.name}`);
+      else if (!(coluna.name in dispensadas)) perdidas.push(`${String(tabela)}.${coluna.name}`);
+    }
+  }
+
+  assert.deepEqual(
+    faltando.sort(),
+    [],
+    'estas colunas são NOT NULL sem padrão e a descida não traz valor para elas: o INSERT é ' +
+      'recusado, a página cai inteira e o cursor não anda. Peça a coluna, ou preencha-a em ' +
+      '`DO_APARELHO` (src/data/descida.ts) com o motivo.',
+  );
+  assert.deepEqual(
+    perdidas.sort(),
+    [],
+    'estas colunas existem no aparelho, a tabela desce, e o valor do servidor não é pedido: o ' +
+      'segundo celular grava o padrão em silêncio. Acrescente a conversão de volta (`baixa` no ' +
+      'serializador) ou registre a dispensa em SO_DO_APARELHO com a razão.',
+  );
+});
+
+test('a régua da descida distingue o mundo coberto do mundo furado', async () => {
+  /**
+   * O caso FALSO da guarda de cima, e sem ele ela aprovaria qualquer esquema: uma tabela que
+   * desce com uma coluna obrigatória que ninguém traz TEM de cair na primeira lista, e uma
+   * opcional não dispensada TEM de cair na segunda. Provado contra uma tabela inventada aqui, em
+   * vez de mexendo no esquema de verdade.
+   */
+  await conn.execAsync(`CREATE TABLE IF NOT EXISTS provaDaDescida (
+    id TEXT PRIMARY KEY,
+    obrigatoria TEXT NOT NULL,
+    comPadrao INTEGER NOT NULL DEFAULT 1,
+    solta TEXT
+  )`);
+  const colunas = await conn.getAllAsync<{ name: string; notnull: number; dflt_value: unknown }>(
+    `PRAGMA table_info(provaDaDescida)`,
+  );
+  const chegam = new Set(['id']);
+  const obrigatorias = colunas
+    .filter((c) => !chegam.has(c.name) && c.notnull === 1 && c.dflt_value === null)
+    .map((c) => c.name);
+  const opcionais = colunas
+    .filter((c) => !chegam.has(c.name) && !(c.notnull === 1 && c.dflt_value === null))
+    .map((c) => c.name);
+
+  assert.deepEqual(
+    obrigatorias,
+    ['obrigatoria'],
+    'a régua tem de separar a obrigatória SEM padrão — é ela que derruba a página',
+  );
+  assert.deepEqual(
+    opcionais.sort(),
+    ['comPadrao', 'solta'],
+    'e as outras duas são perda silenciosa, não parada: padrão gravado por cima do valor real',
+  );
+});

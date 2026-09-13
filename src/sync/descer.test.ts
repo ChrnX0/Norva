@@ -236,3 +236,93 @@ test('an error on one table stops the round instead of skipping to the next', as
       'item que ele cita grava referência quebrada, e o SQLite recusa a linha calado',
   );
 });
+
+
+/**
+ * **Uma página de CADA tabela que desce — porque só `movements` era exercitada.**
+ *
+ * As checagens acima provam o razão descendo e valem: elas acharam o veneno da média e a parada
+ * na primeira tabela. O que elas não cobrem é a outra ponta da lista, e o preço apareceu em 13 de
+ * setembro com dois defeitos que atravessaram quatro rodadas de servidor:
+ *
+ * 1. `purchase_lines.created_at` é `NOT NULL` sem padrão e é coluna só do aparelho — a descida
+ *    nomeava as colunas que grava, a linha entrava sem ela, e o SQLite respondia `NOT NULL
+ *    constraint failed`. Réplica de compras morta para sempre.
+ * 2. As dez colunas que o serializador CONVERTE na ida (`packaging`, `packaging_items`,
+ *    `capabilities`, `sensor_ranges`, `active`) nunca eram pedidas na volta, então o segundo
+ *    celular gravava o padrão por cima do valor real — item sem embalagem, perfil sem permissão.
+ *
+ * É a metade do P1 que este projeto já nomeou — *"quem EXERCITA isto?"* —, e a resposta era
+ * "uma tabela de vinte e cinco". Esta checagem passa por todas, com a linha na forma do SERVIDOR
+ * (booleano, objeto, array), que é a forma que quebra.
+ *
+ * **E ela é liveness antes de ser cobertura:** uma tabela que grava zero linha reprova, senão o
+ * teste passaria medindo um `INSERT` que nunca aconteceu.
+ */
+test('cada tabela que desce grava uma página na forma que o servidor manda', async () => {
+  const { DESCEM, pedido: pedidoDe } = await import('./descida');
+
+  /** O valor que o SERVIDOR daria para esta coluna — e a forma é a dele, não a do SQLite. */
+  const valorDoServidor = (tabela: string, coluna: string, i: number): unknown => {
+    if (coluna === 'id') return `aaaaaaaa-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`;
+    if (coluna === 'company_id') return CO;
+    if (coluna === 'received_at') return '2026-09-10T12:00:00.000Z';
+    // As convertidas, na forma do Postgres: é ela que derruba o driver do SQLite se ninguém
+    // converter de volta.
+    if (coluna === 'active') return true;
+    if (coluna === 'capabilities') return ['view_cost', 'record_production'];
+    if (coluna === 'packaging' || coluna === 'packaging_items') return [{ name: 'caixa', factor: 24 }];
+    if (coluna === 'sensor_ranges') return { temp: { min: -20, max: -15 } };
+    // As chaves apontam para o que o `before` deste arquivo semeou, senão a FK derruba a linha.
+    if (coluna === 'item_id') return ITEM;
+    if (coluna.endsWith('_id')) return null;
+    if (coluna === 'kind') return tabela === 'movements' ? 'purchase' : 'input';
+    if (coluna.endsWith('_at') || coluna.endsWith('_on')) return '2026-09-10T10:00:00.000Z';
+    if (coluna.includes('cents') || coluna.includes('units') || coluna.includes('quantity')) return 1;
+    if (coluna.includes('rate') || coluna.includes('level') || coluna.includes('days')) return null;
+    return `x${i}`;
+  };
+
+  const vazias: string[] = [];
+  for (const [i, tabela] of DESCEM.entries()) {
+    const p = pedidoDe(tabela, null);
+    const linha: Record<string, unknown> = {};
+    for (const coluna of p.colunas) linha[coluna] = valorDoServidor(String(tabela), coluna, i + 1);
+
+    // Sem `try`: uma recusa aqui é exatamente o defeito que esta checagem existe para pegar, e
+    // apanhá-la transformaria a parada da réplica num teste verde — que foi o estado até hoje.
+    const gravadas = await gravarPagina(tabela, p.colunas, [linha]);
+    if (gravadas !== 1) vazias.push(String(tabela));
+  }
+
+  assert.deepEqual(
+    vazias,
+    [],
+    'estas tabelas descem e não gravaram a linha — a página cai, o cursor não anda, e a réplica ' +
+      'morre no mesmo ponto em toda tentativa seguinte.',
+  );
+
+  // E a prova de que a CONVERSÃO aconteceu, não só o `INSERT`: o booleano do servidor virou 0/1 e
+  // o objeto virou texto. Sem estas duas o teste acima passaria com as colunas nunca pedidas.
+  const item = await conn.getFirstAsync<{ active: number; packaging: string | null }>(
+    `SELECT active, packaging FROM items WHERE company_id = ? AND packaging IS NOT NULL`,
+    [CO],
+  );
+  assert.ok(item, 'nenhum item desceu com embalagem — a coluna convertida não foi pedida');
+  assert.equal(item.active, 1, 'o booleano do servidor tem de chegar como 0 ou 1 no SQLite');
+  assert.equal(
+    item.packaging,
+    JSON.stringify([{ name: 'caixa', factor: 24 }]),
+    'a hierarquia de embalagem tem de chegar como TEXTO — objeto cru o driver recusa',
+  );
+
+  const perfil = await conn.getFirstAsync<{ capabilities: string | null }>(
+    `SELECT capabilities FROM profiles WHERE company_id = ?`,
+    [CO],
+  );
+  assert.equal(
+    perfil?.capabilities,
+    'view_cost,record_production',
+    'o `text[]` do servidor tem de chegar como a linha separada por vírgula que o aparelho lê',
+  );
+});

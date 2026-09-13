@@ -32,18 +32,25 @@
  * MESMA linha, e reescrevê-la seria reescrever história. `INSERT OR IGNORE`, e não há
  * conflito possível por construção.
  *
- * **3. As colunas que descem são as mesmas que sobem.** `colunasQueSobem` devolve o `take`
- * do serializador; a descida lê exatamente ele de volta. A ida e a volta ficam simétricas por
- * construção, em vez de por duas listas escritas pela mesma mão que divergem no primeiro
- * `alter table` — a doença que este repositório já nomeou noutro lugar (*"guarda cuja lista
- * é derivada do que o código aceita não guarda o que ele deveria aceitar"*).
+ * **3. As colunas que descem saem da mesma declaração que as que sobem.** `colunasQueDescem`
+ * devolve o `take` do serializador MAIS as chaves que a conversão de volta (`baixa`) produz. A
+ * ida e a volta ficam ligadas por construção, em vez de por duas listas escritas pela mesma mão
+ * que divergem no primeiro `alter table` — a doença que este repositório já nomeou noutro lugar
+ * (*"guarda cuja lista é derivada do que o código aceita não guarda o que ele deveria aceitar"*).
+ *
+ * *Isto dizia "as mesmas que sobem", e essa palavra custou dez colunas.* A descida pedia só o
+ * `take`, então tudo que o serializador CONVERTE na ida — `items.packaging`,
+ * `products.packaging_items`, `profiles.capabilities`, `locations.sensor_ranges` e o `active` de
+ * oito tabelas — nunca voltava. Sem `packaging` o aparelho novo não conta em caixa nem tem degrau
+ * na separação; sem `capabilities` o perfil desce sem permissão nenhuma. Simetria escrita em
+ * prosa não é simetria: o que a garante agora é `baixa` e a guarda que a cobra.
  *
  * **4. O que desce NÃO entra na fila.** É a regra que impede o laço: uma linha que desceu e
  * fosse enfileirada subiria de volta, o servidor a devolveria, e os dois aparelhos ficariam
  * conversando para sempre sobre a mesma linha. O escritor da descida é exceção registrada
  * nas guardas de camada, com a razão escrita lá.
  */
-import { APENAS_INSERE, colunasQueSobem, type ServerTable } from './serialize';
+import { APENAS_INSERE, colunasQueDescem, type ServerTable } from './serialize';
 
 /**
  * Onde este aparelho parou, por tabela.
@@ -56,11 +63,31 @@ export type Cursor = { recebidoEm: string; id: string } | null;
 /**
  * A ordem em que as tabelas descem — e ela é a das CHAVES ESTRANGEIRAS, não alfabética.
  *
- * Um movimento aponta para item, lugar, lote e pessoa; uma linha de receita aponta para a
- * versão, que aponta para a receita. Descer o movimento antes do item que ele cita é gravar
- * referência quebrada — e o aparelho tem `foreign_keys` ligado (`PRAGMAS`, `db.ts`), então o
- * SQLite recusa a linha inteira. A fábrica perderia exatamente os movimentos mais novos,
- * calada.
+ * Um movimento aponta para item, lugar e aparelho; uma linha de receita aponta para a versão,
+ * que aponta para a receita. Descer o movimento antes do item que ele cita é gravar referência
+ * quebrada — e o aparelho tem `foreign_keys` ligado (`PRAGMAS`, `db.ts`), então o SQLite recusa
+ * a linha. Pior: `gravarPagina` grava a página dentro de UMA transação e não apanha exceção,
+ * então a recusa de uma linha derruba a página inteira, o cursor não anda, e a descida morre no
+ * mesmo ponto em toda tentativa seguinte. Não é perda de uma linha — é a réplica parada.
+ *
+ * **Esta lista estava escrita à mão e tinha QUATRO precedências erradas, medidas em 13 de
+ * setembro contra o esquema:**
+ *
+ * | a linha | o pai | consequência |
+ * |---|---|---|
+ * | `products.recipe_id` | `recipes` | **todo produto fabricado** tem ficha: a descida morria na primeira fábrica com um produto |
+ * | `flavors.line_id` / `category_id` / `type_id` | a grade | sabor que estreita para uma linha ou tipo era recusado (`0055`, `0056`, `0059`) |
+ * | `purchases.supplier_id` | `suppliers` | a tabela nem descia: nota com fornecedor cadastrado parava a réplica |
+ * | `movements.device_id` | `devices` | idem, e este alcança TODO movimento de um aparelho matriculado |
+ *
+ * Os dois primeiros nasceram com a descida; os dois últimos entraram com as rodadas que criaram
+ * as tabelas — e nenhum apareceu porque **a ordem não era derivada de nada**. Agora é
+ * conferida: `src/sync/agreement.test.ts` lê as arestas do `db.ts` e reprova precedência errada
+ * ou pai que não desce. Lista escrita à mão contra esquema que cresce é dívida com juros.
+ *
+ * *E a régua é toda aresta, não só as de RESTRICT: numa INSERÇÃO o SQLite cobra a chave qualquer
+ * que seja o `ON DELETE`. `devices.responsible_id` é `SET NULL` e quebra a descida do mesmo
+ * jeito — a ação de apagar não tem nada a ver com a de gravar.*
  *
  * `erase_requests` fica de fora: o pedido de Reset é COMANDO e não fato — quem o lê decide se
  * destrói, e isso não é replicar.
@@ -70,15 +97,21 @@ export const DESCEM: readonly ServerTable[] = [
   'locations',
   'profiles',
   'people',
+  // O aparelho aponta para o lugar e para a pessoa, e todo movimento aponta para ele.
+  'devices',
   'items',
-  'flavors',
+  // Sem pai nenhum, e antes da nota que o cita.
+  'suppliers',
   'product_lines',
   'product_categories',
   'product_types',
-  'products',
+  // DEPOIS dos três: o sabor estreita para linha, categoria ou tipo desde a `0059`.
+  'flavors',
   'recipes',
   'recipe_versions',
   'recipe_lines',
+  // DEPOIS de `recipes` e de `flavors`: o produto aponta para a ficha e para o sabor.
+  'products',
   'lots',
   'location_prices',
   'purchases',
@@ -116,7 +149,7 @@ export function pedido(
 } {
   return {
     tabela,
-    colunas: [...colunasQueSobem(tabela), 'received_at'],
+    colunas: [...colunasQueDescem(tabela), 'received_at'],
     depoisDe: cursor,
     limite: tamanhoDaPagina,
     apenasInsere: APENAS_INSERE.includes(tabela),

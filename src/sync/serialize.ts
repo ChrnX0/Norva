@@ -174,8 +174,61 @@ function structure(value: unknown): unknown {
 }
 
 /**
+ * **O CAMINHO DE VOLTA das conversões — e ele faltava inteiro.**
+ *
+ * `build` converte o que o aparelho guarda numa forma que o servidor aceita: 0/1 para
+ * `boolean`, texto para `jsonb`, texto separado por vírgula para `text[]`. A descida precisa do
+ * INVERSO, e não existia: `pedido()` pedia só o `take`, então nenhuma coluna convertida era
+ * sequer solicitada. Medido em 13 de setembro, tabela por tabela: `items.packaging`,
+ * `products.packaging_items`, `profiles.capabilities`, `locations.sensor_ranges` e o `active` de
+ * oito tabelas **nunca desciam**.
+ *
+ * O `active` é o barato — o segundo celular mostra como ativo quem foi desativado. Os outros
+ * quatro não são: sem `packaging` o aparelho novo não conta em caixa, não tem degrau na separação
+ * e não converte na produção; sem `capabilities` um perfil desce sem permissão nenhuma.
+ *
+ * E não bastava pedir a coluna: o valor chega na forma do SERVIDOR. Um `boolean` num `INTEGER`,
+ * um array de JavaScript num `TEXT` — o driver do SQLite recusa parâmetro que não é escalar, e a
+ * página cai inteira. Então cada conversão de ida tem a de volta escrita ao lado, e a guarda de
+ * `src/sync/columns.test.ts` cobra que toda coluna do aparelho esteja coberta por uma das duas
+ * listas ou por uma exceção com motivo.
+ */
+function inteiro(value: unknown): number {
+  // O contrário de `flag`: o servidor manda `boolean`, o aparelho guarda 0 ou 1. Ausente conta
+  // como verdadeiro, pela mesma razão que na ida — a coluna nasceu com `DEFAULT 1`.
+  if (value === undefined || value === null) return 1;
+  return value === true || value === 1 || value === '1' || value === 't' ? 1 : 0;
+}
+
+/** O contrário de `structure`: o servidor manda `jsonb`, o aparelho guarda texto. */
+function texto(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * O contrário da lista de capacidades: o servidor manda `text[]`, o aparelho guarda uma linha
+ * separada por vírgula.
+ *
+ * Texto que já vem como texto atravessa igual — o cliente do Postgres pode entregar
+ * `{a,b}` cru numa configuração e um array de verdade noutra, e este é o lugar de absorver isso
+ * em vez de o `INSERT` descobrir.
+ */
+function lista(value: unknown): string {
+  if (Array.isArray(value)) return value.map(String).join(',');
+  if (typeof value !== 'string') return '';
+  return value.startsWith('{') ? value.slice(1, -1).split(',').filter(Boolean).join(',') : value;
+}
+
+/**
  * How each table crosses. `take` lists the columns that travel unchanged;
- * `build` adds everything that is converted, renamed or stamped.
+ * `build` adds everything that is converted, renamed or stamped; `baixa` is the
+ * way back for everything `build` converted.
  *
  * A table absent from here cannot be sent, and that is deliberate: a new device
  * table is a decision about what the server should receive, not something to
@@ -188,6 +241,11 @@ const CROSSINGS: Record<
   {
     take: readonly string[];
     build?: (row: Record<string, unknown>, actor: SyncActor) => Record<string, unknown>;
+    /**
+     * A volta: o que a DESCIDA pede além do `take`, e como o valor do servidor vira valor do
+     * aparelho. Ausente quer dizer "nada a converter" — e é o caso da maioria.
+     */
+    baixa?: (linha: Record<string, unknown>) => Record<string, unknown>;
   }
 > = {
   readings: {
@@ -226,6 +284,7 @@ const CROSSINGS: Record<
         .split(',')
         .filter(Boolean),
     }),
+    baixa: (linha) => ({ capabilities: lista(linha.capabilities) }),
   },
 
   /**
@@ -266,6 +325,7 @@ const CROSSINGS: Record<
      * quietly cast one to the other - the insert fails outright"*.
      */
     build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   erase_requests: {
@@ -310,6 +370,7 @@ const CROSSINGS: Record<
     // embalagem: mandada crua, o Postgres guarda uma string entre aspas onde
     // deveria haver objeto e a restrição do lugar recusa a fila inteira.
     build: (row) => ({ sensor_ranges: structure(row.sensor_ranges) }),
+    baixa: (linha) => ({ sensor_ranges: texto(linha.sensor_ranges) }),
   },
 
   items: {
@@ -328,6 +389,7 @@ const CROSSINGS: Record<
       'sale_price_rate',
     ],
     build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
+    baixa: (linha) => ({ active: inteiro(linha.active), packaging: texto(linha.packaging) }),
   },
 
   /**
@@ -366,6 +428,7 @@ const CROSSINGS: Record<
   recipes: {
     take: ['id', 'company_id', 'name', 'yield_amount', 'yield_unit', 'created_at'],
     build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   recipe_versions: {
@@ -426,6 +489,7 @@ const CROSSINGS: Record<
     // Nulo continua nulo: família sem embalagem definida não afirma nada, e
     // `structure` devolve `null` para o que não é texto.
     build: (row) => ({ active: flag(row.active), packaging: structure(row.packaging) }),
+    baixa: (linha) => ({ active: inteiro(linha.active), packaging: texto(linha.packaging) }),
   },
 
   // A categoria entra entre o produto e o tipo (`0057`), e por isso atravessa
@@ -434,6 +498,7 @@ const CROSSINGS: Record<
   product_categories: {
     take: ['id', 'company_id', 'line_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   product_types: {
@@ -441,6 +506,7 @@ const CROSSINGS: Record<
     // alguma coisa — o tipo é do produto direto, que é o caso da fábrica do dono.
     take: ['id', 'company_id', 'line_id', 'category_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   flavors: {
@@ -450,6 +516,7 @@ const CROSSINGS: Record<
     // no de leite, que é exatamente a trava que a coluna existe para dar.
     take: ['id', 'company_id', 'line_id', 'category_id', 'type_id', 'name', 'sort'],
     build: (row) => ({ active: flag(row.active) }),
+    baixa: (linha) => ({ active: inteiro(linha.active) }),
   },
 
   products: {
@@ -471,6 +538,10 @@ const CROSSINGS: Record<
     // aspas onde deveria haver lista, aceita sem reclamar, e o consumo do outro
     // lado passa a somar nada.
     build: (row) => ({ active: flag(row.active), packaging_items: structure(row.packaging_items) }),
+    baixa: (linha) => ({
+      active: inteiro(linha.active),
+      packaging_items: texto(linha.packaging_items),
+    }),
   },
 
   // O lote atravessa antes do movimento que o cita, e a fila cuida disso
@@ -718,12 +789,50 @@ export const sendableTables = Object.keys(CROSSINGS) as ServerTable[];
  * são simétricas por CONSTRUÇÃO — uma coluna nova sobe e desce junto, ou não faz nem uma
  * coisa nem outra.
  *
- * O que `build` acrescenta fica de fora de propósito: são campos que o SERVIDOR precisa e o
- * aparelho não guarda (`recorded_by`, que é a conta que escreveu). Descer o que o aparelho
- * não tem onde pôr seria inventar coluna.
+ * **E esta função NÃO serve para a descida, ao contrário do que este docblock afirmava.** A
+ * frase que estava aqui era: *"o que `build` acrescenta fica de fora de propósito: são campos que
+ * o SERVIDOR precisa e o aparelho não guarda (`recorded_by`)"*. Ela é verdadeira para quatro
+ * chaves e falsa para as outras dez — `active`, `packaging`, `packaging_items`, `capabilities` e
+ * `sensor_ranges` são CONVERSÕES de colunas que o aparelho guarda, não invenções do servidor. A
+ * fronteira foi dita em voz alta e estava errada, e nada a media: a descida pedia só o `take` e
+ * essas dez colunas nunca voltavam. Ver `colunasQueDescem`.
  */
 export function colunasQueSobem(tabela: ServerTable): readonly string[] {
   return CROSSINGS[tabela].take;
+}
+
+/**
+ * As colunas que a DESCIDA pede — o `take` mais o que `baixa` sabe converter de volta.
+ *
+ * Derivada da própria declaração de `baixa`, e não de uma terceira lista: a chave que a conversão
+ * de volta produz é exatamente a que a descida tem de pedir, e ligar as duas por construção é o
+ * que impede o defeito de 13 de setembro de voltar — dez colunas convertidas na ida e nunca
+ * pedidas na volta.
+ *
+ * `received_at` não entra aqui: ele é o cursor, e quem o acrescenta é `pedido()`, que é quem sabe
+ * que existe cursor.
+ */
+export function colunasQueDescem(tabela: ServerTable): readonly string[] {
+  const cruzamento = CROSSINGS[tabela];
+  if (!cruzamento.baixa) return cruzamento.take;
+  const convertidas = Object.keys(cruzamento.baixa({}));
+  return [...cruzamento.take, ...convertidas.filter((c) => !cruzamento.take.includes(c))];
+}
+
+/**
+ * Traduz uma linha que o servidor devolveu para os valores que o SQLite aceita.
+ *
+ * Sem isto a coluna pedida chega na forma do servidor — `boolean` para um `INTEGER`, array de
+ * JavaScript para um `TEXT` — e o driver recusa o parâmetro que não é escalar: a página cai
+ * inteira, o cursor não anda, e a descida morre ali para sempre. Pedir a coluna sem converter o
+ * valor seria trocar uma perda silenciosa por uma parada total.
+ */
+export function converterNaDescida(
+  tabela: ServerTable,
+  linha: Record<string, unknown>,
+): Record<string, unknown> {
+  const baixa = CROSSINGS[tabela].baixa;
+  return baixa ? { ...linha, ...baixa(linha) } : linha;
 }
 
 /**

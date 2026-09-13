@@ -11,7 +11,7 @@
  * antes de eu empurrar. O conserto certo não era pedir exceção: era mover.*
  */
 import { db, nowIso } from './db';
-import { APENAS_INSERE, type ServerTable } from '@/sync/serialize';
+import { APENAS_INSERE, converterNaDescida, type ServerTable } from '@/sync/serialize';
 
 /**
  * O SQL que grava uma linha descida — e as duas formas dizem o que a tabela É.
@@ -83,6 +83,28 @@ async function temColuna(tabela: ServerTable): Promise<Set<string>> {
   colunasLocais.set(tabela, nomes);
   return nomes;
 }
+/**
+ * O que é do APARELHO, obrigatório, e o servidor não tem — preenchido aqui ou a página cai.
+ *
+ * `purchase_lines.created_at` é `TEXT NOT NULL` sem padrão, e é coluna só daqui: o servidor não a
+ * tem, e o `take` do serializador registra isso com a razão (*"a hora que interessa é a da
+ * nota"*). Só que a descida NOMEIA as colunas que grava, então a linha entrava sem `created_at` e
+ * o SQLite respondia `NOT NULL constraint failed` — a página inteira fora, o cursor parado, e a
+ * réplica de compras morta para sempre. Medido em 13 de setembro; ninguém tinha visto porque o
+ * único `gravarPagina` exercitado em teste era o de `movements`.
+ *
+ * O valor é o `received_at` da própria linha, e ele é o significado certo aqui: `created_at` numa
+ * linha que desceu é *quando este aparelho soube dela*, e é isso que a hora do servidor diz. A
+ * alternativa — `nowIso()` — daria a hora da SINCRONIA, que muda a cada restauração do mesmo
+ * banco e faz duas réplicas da mesma nota discordarem sobre quando ela existe.
+ *
+ * A lista é curta de propósito e a guarda de `src/sync/columns.test.ts` a cobra: toda coluna
+ * obrigatória do aparelho numa tabela que desce está nas colunas que descem, ou aqui.
+ */
+const DO_APARELHO: Partial<Record<ServerTable, (linha: Record<string, unknown>) => Record<string, unknown>>> = {
+  purchase_lines: (linha) => ({ created_at: linha.received_at ?? nowIso() }),
+};
+
 export async function gravarPagina(
   tabela: ServerTable,
   colunas: readonly string[],
@@ -91,11 +113,20 @@ export async function gravarPagina(
   if (pagina.length === 0) return 0;
   const conn = await db();
   const daqui = await temColuna(tabela);
-  const guardadas = colunas.filter((c) => c !== 'received_at' && daqui.has(c));
+  const doAparelho = DO_APARELHO[tabela];
+  const pedidas = doAparelho ? [...colunas, ...Object.keys(doAparelho({}))] : colunas;
+  const guardadas = pedidas.filter((c) => c !== 'received_at' && daqui.has(c));
   const sql = escritaLocal(tabela, guardadas, APENAS_INSERE.includes(tabela));
   let gravadas = 0;
   await conn.withTransactionAsync(async () => {
-    for (const linha of pagina) {
+    for (const crua of pagina) {
+      /**
+       * A conversão é por LINHA e vem antes da escrita: o servidor manda `boolean` para um
+       * `INTEGER` e array de JavaScript para um `TEXT`, e o driver do SQLite recusa parâmetro que
+       * não é escalar. Pedir a coluna sem converter o valor trocaria uma perda silenciosa por uma
+       * parada total — ver `converterNaDescida`.
+       */
+      const linha = { ...converterNaDescida(tabela, crua), ...(doAparelho?.(crua) ?? {}) };
       await conn.runAsync(
         sql,
         guardadas.map((c) => (linha[c] ?? null) as string | number | null),

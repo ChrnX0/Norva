@@ -12629,3 +12629,50 @@ um argumento, em um lugar — e o rateio entra com trabalho de verdade para faze
 *E é a mesma razão que mantém o gatilho do servidor intocado: ele dispara POR LINHA, e a fila pode
 entregar a primeira antes de a segunda existir. Um rateio lá teria o denominador errado e nada
 denunciaria.*
+
+## 13 de setembro — A DESCIDA não descia, e o que a mantinha verde era UMA tabela exercitada
+
+Fui conferir se `suppliers` (rodada 16) estava na lista da descida. Não estava — e ao derivar a
+régua contra o esquema em vez de ler a lista, apareceu uma família de três defeitos que
+atravessou quatro rodadas de servidor com a barra verde.
+
+**1. A ordem de `DESCEM` tinha QUATRO precedências erradas.** A lista promete de si mesma estar
+*"na ordem das chaves estrangeiras"* e era escrita à mão. Medido contra o `db.ts`: `products`
+descia antes de `recipes` (e todo produto fabricado tem ficha), `flavors` antes da grade que ele
+estreita, e `suppliers` e `devices` não desciam.
+
+**2. As dez colunas que o serializador CONVERTE na ida nunca eram pedidas na volta.** `pedido()`
+derivava as colunas de `colunasQueSobem` = o `take`, e o que `build` converte não está no `take`.
+Então `items.packaging`, `products.packaging_items`, `profiles.capabilities`,
+`locations.sensor_ranges` e o `active` de oito tabelas não desciam. O docblock de
+`colunasQueSobem` justificava isso com uma frase: *"são campos que o SERVIDOR precisa e o
+aparelho não guarda (`recorded_by`)"* — verdadeira para quatro chaves e falsa para as outras dez.
+
+**3. `purchase_lines` nunca descia: `created_at` é `NOT NULL` sem padrão e é coluna só daqui.**
+
+**O que torna isto uma lição e não uma lista de bugs são duas coisas.**
+
+A primeira é o custo de UMA referência faltando. `gravarPagina` grava a página dentro de uma
+transação e não apanha exceção; o aparelho tem `foreign_keys` ligado; `descer()` para a rodada
+inteira no primeiro erro (de propósito, para não gravar movimento antes do item). Então uma FK
+que ainda não chegou não perde uma linha: ela derruba a página, o cursor **não anda**, e toda
+tentativa seguinte morre no mesmo ponto. A réplica para, calada, na fábrica do cliente.
+
+A segunda é por que nada disso apareceu: **o único `gravarPagina` exercitado em teste era o de
+`movements`** — uma tabela de vinte e cinco. É exatamente a metade do P1 que este arquivo já
+nomeou em 13 de setembro (*"quem EXERCITA isto?"*), e ela cobrou duas vezes no mesmo dia.
+
+**Os três consertos são do mesmo tipo: parar de escrever a lista à mão.**
+
+- a ordem passou a ser conferida contra as arestas lidas do `db.ts` (`agreement.test.ts`), com as
+  duas falhas distinguidas por mensagem — pai que não desce e pai que desce depois;
+- a volta das conversões (`baixa`) fica ao lado da ida, e as colunas que a descida pede são
+  **derivadas das chaves que ela produz** — nunca uma terceira lista;
+- toda coluna do aparelho numa tabela que desce tem de estar coberta, e as obrigatórias sem padrão
+  não têm exceção possível (`columns.test.ts`);
+- e uma checagem desce uma página de CADA tabela, com os valores na forma do servidor — booleano,
+  objeto, array —, que é a forma que derruba o driver.
+
+*E a régua que eu tirei disto, porque ela é transferível: quando um docblock explica por que uma
+lista pode ficar de fora, a pergunta não é se a explicação faz sentido — é para quantos dos itens
+ela vale. Aqui valia para quatro de catorze, e as dez que sobravam eram a metade que importava.*

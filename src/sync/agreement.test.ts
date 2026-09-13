@@ -665,3 +665,98 @@ alter table pedidos rename column quando_chegou to chegou_em;
     'o `not null` não atravessou o rename: a régua deixaria de cobrar a coluna do aparelho',
   );
 });
+
+
+/**
+ * **A ordem da descida contra o GRAFO de chaves do aparelho — derivada, não lembrada.**
+ *
+ * `DESCEM` é uma lista escrita à mão que promete estar "na ordem das chaves estrangeiras", e em
+ * 13 de setembro ela tinha **quatro** precedências erradas: `products` antes de `recipes` (todo
+ * produto fabricado tem ficha), `flavors` antes da grade que ele estreita, e duas tabelas que
+ * nem desciam — `suppliers` e `devices`, entradas nas rodadas 16 e 15.
+ *
+ * **O que isso custa não é uma linha perdida.** `gravarPagina` grava a página inteira dentro de
+ * uma transação e não apanha exceção; o aparelho tem `foreign_keys` ligado. Então uma referência
+ * que ainda não chegou derruba a página, o cursor não anda, e a descida morre no mesmo ponto em
+ * toda tentativa seguinte — a réplica parada, calada, na fábrica do cliente.
+ *
+ * **Toda aresta conta, não só as de RESTRICT.** `src/data/erase.test.ts` lê só as de RESTRICT, e
+ * está certo: ali a pergunta é o que trava um DELETE. Aqui a pergunta é o que trava um INSERT, e
+ * o SQLite cobra a chave qualquer que seja o `ON DELETE` — `devices.responsible_id` é `SET NULL`
+ * e quebra a descida do mesmo jeito.
+ *
+ * A régua distingue dois defeitos com mensagens diferentes, porque o conserto é diferente: pai
+ * que não desce (acrescente à lista) e pai que desce DEPOIS (mova). E ela prova que leu algo:
+ * grafo vazio aprovaria qualquer lista.
+ */
+function arestasDoAparelho(): Map<string, Set<string>> {
+  const esquema = readFileSync('src/data/db.ts', 'utf8');
+  const mapa = new Map<string, Set<string>>();
+  const juntar = (filho: string, pai: string) => {
+    if (filho === pai) return;
+    const atual = mapa.get(filho) ?? new Set<string>();
+    atual.add(pai);
+    mapa.set(filho, atual);
+  };
+
+  for (const [, tabela, corpo] of esquema.matchAll(
+    /CREATE TABLE IF NOT EXISTS (\w+)\s*\(([\s\S]*?)\n\s*\)/g,
+  )) {
+    for (const [, pai] of corpo.matchAll(/REFERENCES (\w+)\(\w+\)/g)) juntar(tabela, pai);
+  }
+  // As colunas que entraram por `ALTER` numa migração posterior — e são justamente as quatro
+  // que estavam erradas: a grade do sabor, o aparelho do movimento, o fornecedor da nota.
+  for (const [, tabela, pai] of esquema.matchAll(
+    /ALTER TABLE (\w+) ADD COLUMN \w+ TEXT REFERENCES (\w+)\(\w+\)/g,
+  )) {
+    juntar(tabela, pai);
+  }
+  return mapa;
+}
+
+test('a ordem da descida respeita as chaves estrangeiras do aparelho', () => {
+  const arestas = arestasDoAparelho();
+  const ordem = new Map(DESCEM.map((t, i) => [String(t), i]));
+  const viajam = new Set(sendableTables().map(String));
+
+  // Liveness: sem isto um grafo lido vazio — uma expressão regular que deixou de casar depois de
+  // uma mudança de formatação no `db.ts` — aprovaria qualquer ordem, para sempre.
+  const total = [...arestas.values()].reduce((n, s) => n + s.size, 0);
+  assert.ok(
+    total > 25,
+    `só ${total} arestas de chave estrangeira lidas do db.ts — a régua não leu o esquema, e uma ordem errada passaria`,
+  );
+  // E que ela ao menos alcança a descida: arestas lidas numa tabela que não desce não guardam nada.
+  const alcancadas = DESCEM.filter((t) => (arestas.get(String(t))?.size ?? 0) > 0).length;
+  assert.ok(
+    alcancadas > 8,
+    `só ${alcancadas} tabelas de DESCEM têm aresta lida — a régua está olhando para o lado errado do esquema`,
+  );
+
+  const semDescer: string[] = [];
+  const foraDeOrdem: string[] = [];
+  for (const tabela of DESCEM) {
+    for (const pai of arestas.get(String(tabela)) ?? []) {
+      // Pai que o aparelho tem e que NÃO atravessa a sincronia é outro assunto — ele nunca
+      // chega por descida nenhuma, e a guarda das colunas é quem cobra isso.
+      if (!viajam.has(pai)) continue;
+      if (!ordem.has(pai)) semDescer.push(`${String(tabela)} → ${pai}`);
+      else if ((ordem.get(pai) as number) > (ordem.get(String(tabela)) as number)) {
+        foraDeOrdem.push(`${String(tabela)} → ${pai}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    semDescer.sort(),
+    [],
+    'estas linhas descem citando um pai que NÃO desce: a chave estrangeira derruba a página, o ' +
+      'cursor não anda, e a réplica morre ali para sempre. Acrescente o pai a DESCEM.',
+  );
+  assert.deepEqual(
+    foraDeOrdem.sort(),
+    [],
+    'estas linhas descem ANTES do pai que elas citam — mesma morte, e a ordem de DESCEM é o ' +
+      'conserto. Mova o pai para antes do filho.',
+  );
+});
