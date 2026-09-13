@@ -4,6 +4,7 @@ import { beforeEach, test } from 'node:test';
 import { fromDecimal, rate, amountOf, type Rate} from '@/domain/money';
 import { dayWindow, localDate } from '@/domain/day';
 import { costRecipe } from '@/domain/recipe';
+import { folgaQueAFabricaUsa } from '@/domain/cost';
 import { CARGO_PLACE_KINDS, INTERNAL_PLACE_KINDS, type ReturnReason } from '@/domain/ledger';
 import { __setDb, db, migrate, migrationSteps, nowIso, type Db, type SqlParam } from './db';
 import {
@@ -51,6 +52,7 @@ import {
   undoCheck,
   recordLoss,
   shoppingToday,
+  folgaObservada,
   openProductionRun,
   openProductionRuns,
   cancelProductionRun,
@@ -8740,5 +8742,108 @@ test('a lista de compras diz o que comprar, quanto, e de quem', async () => {
     (await shoppingToday(CO, agora)).some((l) => l.itemId === parado),
     false,
     'insumo sem saída nenhuma não tem dia de comprar, e inventar um seria o alerta inventado',
+  );
+});
+
+/**
+ * **A folga que a fábrica USA, lida do razão — e a compra que NÃO dá para observar.**
+ *
+ * O domínio prova a mediana e a trava (`folgaQueAFabricaUsa`); o que só este teste alcança é a
+ * leitura: o saldo no instante do PEDIDO — uma comparação de texto sobre datas ISO, porque este
+ * repositório não usa função de data em SQL nenhuma — e a taxa da semana anterior a ele.
+ *
+ * **A montagem é uma fábrica em regime**, para os números serem conferíveis de cabeça: chega um
+ * saco de 20.000 g a cada vinte dias, sai 7.000 g por semana (1.000 g/dia), e o pedido é feito seis
+ * dias antes de cada chegada.
+ *
+ * | pedido | tinha em casa | cobertura | prazo | folga usada |
+ * |---|---|---|---|---|
+ * | dia −50 | 20.000 − 7.000 = 13.000 | 13 d | 6 d | **7** |
+ * | dia −30 | 40.000 − 28.000 = 12.000 | 12 d | 6 d | **6** |
+ * | dia −10 | 60.000 − 49.000 = 11.000 | 11 d | 6 d | **5** |
+ *
+ * Mediana de 7, 6 e 5 = **6**.
+ *
+ * E a PRIMEIRA compra — a que trouxe o estoque inicial — fica fora da amostra de propósito: não
+ * houve saída na semana antes dela, `daysOfCover` devolve nulo, e uma compra sem cobertura
+ * observável não tem folga. Contá-la como zero puxaria a mediana para baixo e faria o aplicativo
+ * sugerir comprar mais tarde do que a fábrica compra.
+ */
+test('a folga observada sai do razão, e a compra sem saída anterior não entra na amostra', async () => {
+  await ensureStarterData(CO);
+  const acucar = await anInput('Açúcar demerara', 20_000);
+
+  const agora = Date.parse('2026-09-20T12:00:00.000Z');
+  const dia = (n: number) => new Date(agora - n * 86_400_000).toISOString();
+
+  // O estoque inicial: pedido no dia −66 e chegado no −60. Ele é a compra que não dá para observar.
+  const compra = async (pedidoEm: number, chegouEm: number) => {
+    await recordPurchase(CO, {
+      itemId: acucar,
+      supplierName: 'Doce Norte',
+      purchaseQuantity: 1,
+      baseUnits: 20_000,
+      totalCents: fromDecimal(400),
+      orderedAt: dia(pedidoEm),
+      occurredAt: dia(chegouEm),
+    });
+  };
+  /**
+   * 7.000 g por semana, uma perda por semana: cada janela de sete dias antes de um pedido contém
+   * exatamente uma, então a taxa é 1.000 g/dia sem depender de quantas perdas existem no total.
+   *
+   * **E a ORDEM DAS CHAMADAS é intercalada, não cronológica — isto é cicatriz desta escrita.**
+   * `recordLoss` confere o saldo ATUAL e não o saldo em `occurredAt`: lançar as oito perdas de uma
+   * vez logo depois da primeira compra pede 56.000 g de um estoque que tem 20.000, e ela recusa com
+   * `NotEnoughStockError` — o que está certo, porque a tela não deixa alguém perder o que não tem.
+   *
+   * Intercalando, o saldo corrente nunca fica negativo (20.000 → 6.000 → 26.000 → 5.000 → 25.000 →
+   * 11.000 → 31.000 → 24.000) e os `occurred_at` gravados são os mesmos, que é o que a consulta lê.
+   */
+  const perdas = async (...dias: number[]) => {
+    for (const quando of dias) {
+      await recordLoss(CO, { itemId: acucar, baseUnits: 7_000, reason: 'expired', occurredAt: dia(quando) });
+    }
+  };
+  await compra(66, 60);
+  await perdas(56, 49);
+  await compra(50, 44);
+  await perdas(42, 35, 28);
+  await compra(30, 24);
+  await perdas(21, 14);
+  await compra(10, 4);
+  await perdas(7);
+
+  const amostra = await folgaObservada(CO);
+  assert.equal(
+    amostra.length,
+    3,
+    'quatro compras, três observáveis: a do estoque inicial não teve saída na semana antes dela',
+  );
+  assert.deepEqual(
+    amostra.map((a) => Math.round(a.prazoObservado)),
+    [6, 6, 6],
+    'o prazo observado de cada compra é a distância entre o pedido e a chegada',
+  );
+  assert.deepEqual(
+    amostra.map((a) => Math.round(a.diasDeCoberturaAoPedir - a.prazoObservado)).sort((a, b) => a - b),
+    [5, 6, 7],
+    'as três folgas usadas, conferidas de cabeça contra a tabela do docblock',
+  );
+
+  assert.equal(
+    folgaQueAFabricaUsa(amostra),
+    6,
+    'e a mediana é o que a tela sugere: seis dias, não os dois que estão configurados',
+  );
+
+  /**
+   * E o caso FALSO da trava, medido no mesmo cenário: com menos compras observáveis a sugestão
+   * deixa de existir. Sem esta metade a asserção acima passaria com uma função que ignora o mínimo.
+   */
+  assert.equal(
+    folgaQueAFabricaUsa(amostra.slice(0, 2)),
+    null,
+    'duas compras não são hábito, e a peça desaparece em vez de afirmar um',
   );
 });
