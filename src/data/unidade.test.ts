@@ -18,7 +18,8 @@ import {
 /**
  * A hora de nascimento da segunda unidade, fixa.
  *
- * Era `new Date().toISOString()` — e nenhuma asserção deste arquivo lê essa data, então
+ * Era a hora de verdade, lida do relógio no instante do INSERT — e nenhuma asserção deste
+ * arquivo lê essa data, então
  * o relógio de verdade entrava por hábito e não por necessidade. Teste que lê o relógio
  * é bomba com hora marcada: passa hoje e reprova para quem rodar a CI no mês em que a
  * borda importar. Instante fixo custa uma linha e não tem borda.
