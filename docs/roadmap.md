@@ -49,7 +49,7 @@ E a barra de verificação, que é o que separa "compila" de "funciona":
 
 | | |
 |---|---|
-| `npm test` | **824** testes |
+| `npm test` | **825** testes |
 | `npm run mutate` | **150** defeitos plantados — o número é derivado do arquivo; o resultado da última execução está abaixo da tabela, com data, porque ele NÃO é derivado de nada |
 | `npm run e2e:fast` | **59** checagens num navegador de verdade |
 | `npm run db:verify` | **37** garantias contra um Postgres descartável: **19** sob RLS, como a conta da empresa, e **18** como dono do banco — onde o que prende é forma (gatilho, restrição, chave composta, catálogo), e prender o dono é mais forte que prender a conta |
@@ -1837,6 +1837,31 @@ O dono mandou fazer as três recomendações. O que saiu de cada uma:
 ---
 
 ## Agora — o que está aberto
+
+### 0. Trinta e cinco CHECKs do servidor sem par no aparelho — medido em 13 de setembro
+
+<!-- medida: ausente src/sync/agreement.test.ts :: CHECKS_DO_SERVIDOR -->
+
+O servidor tem **43** restrições `check` de tabela (fora as de política). Quatro delas
+existem no SQLite do aparelho; as outras são honradas — quando são — por código de escrita,
+uma por uma, por quem passou por ali. Hoje são **oito** com par escrito: as três de
+`recordPurchase` (`0002`), as três de `saveRecipeVersion` e as duas de `saveProduct`
+(desta rodada). **Sobram trinta e cinco sem ninguém medir se o aparelho as respeita.**
+
+Por que isso é uma fila e não um detalhe: a recusa do servidor por CHECK volta como
+`23514`, e `classeDaRecusa` a trata como PASSAGEIRA de propósito — um CHECK novo pode
+recusar hoje o que uma migração seguinte aceita. Então a entrada nunca sai da frente e
+tudo o que a fábrica gravar depois fica preso atrás dela, calado. É o mesmo defeito que já
+apareceu seis vezes aqui, com outra porta de entrada.
+
+O que a rodada precisa: um registro em `src/sync/agreement.test.ts` que extraia cada
+CHECK de tabela do servidor com a tabela CERTA (o atalho de pegar o último `create/alter
+table` antes do `check` ERRA — mediu `movements: kind <> 'loss'` como sendo de `products`)
+e diga, para cada um, quem o honra no aparelho: o esquema, uma função nomeada, ou nada. O
+que ficar em "nada" é dívida escrita em vez de silêncio, e CHECK novo numa migração sem
+entrada fica vermelho.
+
+---
 
 **Nada dos quatro. Os quatro foram fechados em `1fcbadc`**, e a lista de trabalho
 está aberta esperando a auditoria.

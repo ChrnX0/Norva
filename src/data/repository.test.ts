@@ -8075,3 +8075,96 @@ test('o produto GRAVA a categoria, e a grade conta com ela para achar duplicata'
     'mesma linha e mesma categoria é a mesma classificação, com outro nome ou não',
   );
 });
+
+/**
+ * As cinco recusas do SERVIDOR que a ficha e o produto não tinham — e o outro sentido de cada.
+ *
+ * `recipes.yield_amount > 0`, `recipe_versions.loss_fraction >= 0 and < 1`,
+ * `recipe_lines.quantity > 0` (todas da `0002`), `manufactured_needs_recipe` (`0002`) e
+ * `shelf_life_days is null or > 0` (`0020`). O SQLite do aparelho não carrega nenhuma delas, e
+ * as duas funções gravavam sem perguntar: a linha entrava aqui e a fila morria no servidor com
+ * `23514` — passageira por decisão escrita em `src/sync/recusa.ts`, logo retentada para sempre,
+ * com tudo o que a fábrica gravasse depois preso atrás e calado.
+ *
+ * Os dois sentidos por recusa, porque só o vermelho não distingue nada: uma guarda escrita larga
+ * recusaria a ficha legítima de perda alta ou o produto de revenda, que é o conserto que piora a
+ * tela.
+ */
+test('a ficha e o produto recusam aqui o que o servidor recusaria depois', async () => {
+  // Sem `ensureStarterData`: o exemplo semeado já ocupa a grade de quatro níveis vazios, e os
+  // produtos deste teste não nomeiam nível nenhum — a colisão de grade não é o que se mede aqui.
+  const acucar = await anInput('Açúcar de recusa', 25_000);
+
+  const boa = {
+    name: 'Base de recusa',
+    yieldAmount: 20_000,
+    yieldUnit: 'ml',
+    lossFraction: 0.05,
+    lines: [{ kind: 'item' as const, itemId: acucar, quantity: 3_000 }],
+  };
+
+  await assert.rejects(
+    () => saveRecipeVersion(CO, { ...boa, yieldAmount: 0 }),
+    /rende nada/,
+    'rendimento zero é recusado: o servidor tem check (yield_amount > 0) desde a 0002',
+  );
+  await assert.rejects(
+    () => saveRecipeVersion(CO, { ...boa, lossFraction: 1 }),
+    /cem por cento/,
+    'perda de 1 é recusada: o servidor exige loss_fraction < 1, e 100% de perda não rende nada',
+  );
+  await assert.rejects(
+    () => saveRecipeVersion(CO, { ...boa, lines: [{ kind: 'item', itemId: acucar, quantity: 0 }] }),
+    /ingrediente de quantidade nenhuma/,
+    'linha de quantidade zero é recusada: o servidor tem check (quantity > 0)',
+  );
+
+  // O outro sentido: a ficha legítima de perda ALTA continua entrando. 0,99 é absurdo numa
+  // fábrica e é válido no esquema — a guarda copia a fronteira do servidor, não uma opinião.
+  const alta = await saveRecipeVersion(CO, { ...boa, lossFraction: 0.99 });
+  assert.equal(alta.version, 1, 'a ficha de perda altíssima é válida no servidor e entra aqui');
+
+  const produto = {
+    name: 'Produto de recusa',
+    kind: 'product' as const,
+    recipeId: alta.recipeId,
+    yieldPerUnit: 75,
+    unitPackagingRate: rate(0.05, 1),
+    packaging: loose,
+  };
+
+  await assert.rejects(
+    () => saveProduct(CO, { ...produto, yieldPerUnit: null }),
+    /produto pela metade/,
+    'ficha sem conversão é recusada: o servidor tem manufactured_needs_recipe, e sem a ' +
+      'conversão recordProduction não sabe quanto uma unidade leva da batida',
+  );
+  await assert.rejects(
+    () => saveProduct(CO, { ...produto, shelfLifeDays: 0 }),
+    /zero dia/,
+    'validade de zero dia é recusada: o servidor exige shelf_life_days > 0 desde a 0020',
+  );
+
+  // Os dois outros sentidos: o produto fabricado inteiro entra, e a REVENDA — que não tem
+  // nenhuma das duas colunas — entra também. Uma guarda escrita larga barraria a revenda.
+  //
+  // Os dois em coordenadas de grade DIFERENTES, porque a grade dos quatro níveis é única: dois
+  // produtos que não nomeiam nível nenhum são o mesmo lugar do catálogo, e a recusa seria da
+  // grade em vez da que se está medindo.
+  const feito = await saveProduct(CO, { ...produto, shelfLifeDays: 30 });
+  assert.ok(feito, 'o produto fabricado com ficha e conversão continua entrando');
+
+  const linha = await saveLine(CO, { name: 'Revendas' });
+  const sabor = await saveFlavor(CO, { lineId: linha, name: 'Baunilha de fora' });
+  const revenda = await saveProduct(CO, {
+    name: 'Sorvete comprado pronto',
+    kind: 'resale',
+    recipeId: null,
+    yieldPerUnit: null,
+    unitPackagingRate: rate(0, 1),
+    packaging: loose,
+    lineId: linha,
+    flavorId: sabor,
+  });
+  assert.ok(revenda, 'a revenda não tem ficha nem conversão, e é isso que o servidor permite');
+});

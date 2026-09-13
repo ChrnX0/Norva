@@ -2224,6 +2224,35 @@ export async function saveRecipeVersion(
   },
 ): Promise<{ recipeId: string; version: number }> {
   await exigirCapacidade(companyId, 'manage_company', 'salvar versao de ficha');
+
+  /**
+   * As três recusas que o SERVIDOR tem desde a `0002` e o aparelho não tinha.
+   *
+   * `recipes.yield_amount > 0`, `recipe_versions.loss_fraction >= 0 and < 1` e
+   * `recipe_lines.quantity > 0`. O SQLite daqui não carrega nenhuma das três — a única que ele
+   * tem nesta família é `(item_id IS NULL) <> (sub_recipe_id IS NULL)` —, então a ficha entrava
+   * no aparelho e a fila morria no servidor com `23514`, que `classeDaRecusa` trata como
+   * PASSAGEIRA de propósito (um CHECK novo pode recusar hoje o que uma migração seguinte
+   * aceita). A entrada nunca sai da frente e tudo o que a fábrica gravar depois fica preso
+   * atrás dela, calado. É a mesma refutação escrita em `recordPurchase`, na mesma forma.
+   *
+   * **E as três são alcançáveis, não hipótese.** Rendimento zero é o campo em branco de quem
+   * está cadastrando; perda de 1 é "100% de perda", que a tela aceita porque ela pergunta por
+   * cento e divide por cem; e linha com quantidade zero é o ingrediente que alguém acrescentou
+   * e não preencheu. Nenhuma delas quebra a tela — todas quebram a sincronia, dias depois.
+   */
+  if (!(input.yieldAmount > 0)) {
+    throw new Error('uma receita que rende nada não rende: diga quanto sai de uma batida');
+  }
+  if (!(input.lossFraction >= 0 && input.lossFraction < 1)) {
+    throw new Error('a perda vai de nenhuma até quase tudo: cem por cento de perda não é receita');
+  }
+  for (const linha of input.lines) {
+    if (!(linha.quantity > 0)) {
+      throw new Error('um ingrediente de quantidade nenhuma não é ingrediente: tire ou preencha');
+    }
+  }
+
   const conn = await db();
   const at = nowIso();
   const recipeId = input.recipeId ?? newId();
@@ -3656,6 +3685,32 @@ export async function saveProduct(
   },
 ): Promise<{ productId: string; itemId: string }> {
   await exigirCapacidade(companyId, 'manage_company', 'cadastrar produto');
+
+  /**
+   * As duas recusas do SERVIDOR que faltavam aqui, e a primeira é de DINHEIRO.
+   *
+   * `manufactured_needs_recipe` (`0002`) diz `(recipe_id is null) = (yield_per_unit is null)`:
+   * ou o produto é fabricado e tem receita E conversão, ou é revenda e não tem nenhuma das
+   * duas. Meio produto — receita sem conversão — é o que faz `recordProduction` não saber
+   * quanto uma unidade consome da batida, e é por isso que o servidor o recusa desde o começo
+   * (a garantia 3 do `db:verify` existe só para essa linha).
+   *
+   * `shelf_life_days is null or > 0` (`0020`) é a outra: zero dia de validade não é "não
+   * vence", é "vence no instante em que sai", e o aviso de validade nasceria vencido.
+   *
+   * Sem estas duas o cadastro entrava no aparelho e a fila morria com `23514` — passageira por
+   * decisão escrita, então retentada para sempre, com tudo atrás preso. Mesma forma das três de
+   * `recordPurchase` e das três de `saveRecipeVersion`.
+   */
+  if ((input.recipeId === null) !== (input.yieldPerUnit === null)) {
+    throw new Error(
+      'produto pela metade: ou tem ficha e quanto cada unidade leva, ou é revenda e não tem nenhum dos dois',
+    );
+  }
+  if (input.shelfLifeDays !== undefined && input.shelfLifeDays !== null && !(input.shelfLifeDays > 0)) {
+    throw new Error('validade de zero dia não é validade: deixe em branco se ele não vence');
+  }
+
   // Antes de abrir a transação, porque recusar depois de gravar o item deixaria
   // um item órfão para trás - e a checagem lê, não escreve.
   await assertTypeBelongsToLine(companyId, input.lineId ?? null, input.typeId ?? null);
