@@ -3849,6 +3849,67 @@ check('o que ficou de lado tem tela, e zero não vira frase nenhuma', async (pag
   );
 });
 
+check('a carga que ninguém escolheu sai COM lote — o item deduzido tem o dele', async (page) => {
+  /**
+   * O caminho mais comum era o que perdia o lote.
+   *
+   * `frente` — o lote que vai — perguntava pelo `itemId` do ESTADO, que só existe depois de
+   * alguém tocar na lista. Mas a linha que a tela usa é `lines.find(… itemId) ?? lines[0]`:
+   * quem não toca em nada carrega o primeiro, e `ordemDeCarga` põe o produto acabado na
+   * frente quando o destino é loja. Então a carga saía com `lotId: null` exatamente no
+   * caminho de quem confia na dedução da tela.
+   *
+   * O custo está escrito no molde de `app/picking.tsx`: lote da fábrica que só sobe — um
+   * lote que já viajou continua parecendo estar aqui —, a carga seguinte estampando o código
+   * errado na etiqueta, e num recall a diferença entre saber qual loja recebeu e não saber.
+   *
+   * Por que esta checagem é de NAVEGADOR: o que estava errado é a tela ligando o item
+   * deduzido ao lote. `recordTransfer` sempre aceitou o `lotId`, e `lotsInStock` sempre
+   * devolveu o lote — nenhum módulo estava com defeito. E a asserção é a CONFIRMAÇÃO, que é
+   * onde a frase do lote aparece antes de o razão receber qualquer coisa.
+   *
+   * E o passo que a torna verdadeira: **não se toca no item**. Tocar preencheria `itemId` e
+   * mediria o caminho que já funcionava.
+   */
+  await page.goto(`http://localhost:${PORT}/places`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByText('Cadastrar um lugar', { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Como se chama').fill('Loja do Lote');
+  await page.waitForTimeout(300);
+  await page.getByText('Salvar lugar', { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  // Produzir é o que CRIA o lote — sem corrida não há lote para perder.
+  await page.goto(`http://localhost:${PORT}/production/new`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  await page.getByLabel(/Quantas unidades/).fill('480');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar produção', { exact: true }).first().click();
+  await page.waitForTimeout(900);
+  await page.getByText('Registrar', { exact: true }).first().click();
+  await page.waitForTimeout(2500);
+
+  await page.goto(`http://localhost:${PORT}/transfer`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+
+  // O destino, sim: ele é o que a tela não tem como deduzir com duas lojas. O ITEM, não.
+  await page.getByLabel('Loja do Lote').first().click();
+  await page.waitForTimeout(700);
+  await page.getByLabel('Quanto vai').fill('40');
+  await page.waitForTimeout(600);
+  await page.getByText('Registrar a transferência', { exact: true }).first().click();
+  await page.waitForTimeout(1200);
+
+  const confirmacao = await screen(page);
+  assert.match(
+    confirmacao,
+    /Sai do lote/,
+    'a carga do item DEDUZIDO diz de que lote sai: sem isso ela grava lotId nulo e o lote da ' +
+      'fábrica só sobe, com a etiqueta da próxima carga saindo errada',
+  );
+});
+
 try {
   // Rebuilt every run unless somebody explicitly asks to reuse the last one.
   //

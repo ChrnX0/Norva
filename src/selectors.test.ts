@@ -80,6 +80,8 @@ const NAO_E_DICIONARIO: Record<string, string> = {
     'nome de loja que a própria checagem cadastra antes de tocar nele — como o sabor Uva acima. Nome de lugar é dado da fábrica, não frase de tela: traduzi-lo seria traduzir o nome do cliente de alguém',
   'Loja Norte':
     'a segunda loja da checagem de reserva — ela existe para a carga ter para onde ir que não seja quem espera',
+  'Loja do Lote':
+    'a loja que a checagem do lote deduzido cadastra antes de tocar nela — ela precisa de destino próprio porque o que se mede é a carga que NINGUÉM escolheu, e reusar uma loja com hábito já formado preencheria o item por palpite',
   Ana:
     'nome de pessoa que a própria checagem cadastra antes de tocar nele — nome de gente é dado da fábrica, não frase de tela, pelo mesmo motivo que nome de loja',
   Uva: 'sabor que a própria checagem cadastra antes de tocar nele',

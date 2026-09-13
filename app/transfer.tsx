@@ -278,12 +278,31 @@ function Transfer() {
    *
    * Nulo é caso normal e frequente: açúcar e palito não têm lote.
    */
+  /**
+   * **O lote é do item que VAI, e o item que vai pode ter sido deduzido.**
+   *
+   * Isto perguntava por `itemId` — o ESTADO, que só existe depois de alguém tocar na lista.
+   * Só que a linha que a tela usa é `lines.find(… itemId) ?? lines[0]`: quando há um item só,
+   * ou quando ninguém escolheu, a carga sai do primeiro **sem que `itemId` seja preenchido**.
+   * Resultado: `frente` devolvia nulo, a confirmação não dizia lote nenhum, e
+   * `recordTransfer` gravava `lotId: null`.
+   *
+   * O custo é o que o molde de `app/picking.tsx` já descreve com todas as letras: lote da
+   * fábrica que só sobe — um lote que já viajou continua parecendo estar aqui —, a carga
+   * seguinte estampando o código errado na etiqueta, e num recall a diferença entre saber
+   * qual loja recebeu e não saber. E ele acontecia justamente no caminho MAIS comum, o de
+   * quem não toca em nada porque a tela já deduziu certo.
+   *
+   * Nulo continua sendo caso normal: açúcar e palito não têm lote. O que não pode é nulo
+   * porque ninguém perguntou.
+   */
+  const itemQueVai = line?.itemId ?? null;
   const { data: frente } = useQuery<Frente>(async () => {
-    if (!itemId) return null;
+    if (!itemQueVai) return null;
     const origem = devolucao ? (toId ?? nossa) : nossa;
-    const lotes = await lotsInStock(empresaDaqui(), itemId, origem);
+    const lotes = await lotsInStock(empresaDaqui(), itemQueVai, origem);
     return lotes[0] ?? null;
-  }, `${itemId ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
+  }, `${itemQueVai ?? ''}:${devolucao ? 'v' : 'i'}:${toId ?? ''}`);
 
   // Sete dias: o horizonte da separação e o da reserva são o mesmo, e por isso
   // é uma constante só. Com dois números, a tela sugeria contando um conjunto de
